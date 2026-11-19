@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Production builds
+frontend/dist/
+frontend/dist-ssr/
+
+# Maven / Java
+**/target/
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+.settings/
+.classpath
+.project
+.factorypath
+.sts4-cache
+.apt_generated
+
+# OS Files
+.DS_Store
+Thumbs.db
+*.log
