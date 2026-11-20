@@ -8,10 +8,11 @@ import EditOrderModal from './components/EditOrderModal';
 import InvoiceModal from './components/InvoiceModal';
 import ApiConfigModal from './components/ApiConfigModal';
 import Toast from './components/Toast';
+import GlowCursor from './components/GlowCursor';
 import { api } from './services/api';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('menu'); // 'menu' | 'dashboard' | 'track'
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'menu' | 'track'
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
@@ -20,6 +21,19 @@ export default function App() {
   const [invoiceOrder, setInvoiceOrder] = useState(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [toasts, setToasts] = useState([]);
+
+  // Theme Management (Dark by default for rich cyber restaurant glow)
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('food_order_theme') || 'dark';
+  });
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('food_order_theme', next);
+      return next;
+    });
+  };
 
   // Toast Notification System
   const showToast = useCallback((message, type = 'info') => {
@@ -129,94 +143,111 @@ export default function App() {
   };
 
   return (
-    <div className="app-container">
-      {/* Navbar */}
-      <Navbar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        ordersCount={orders.length}
-        isBackendConnected={isBackendConnected}
-        onOpenConfig={() => setIsConfigOpen(true)}
-      />
+    <GlowCursor
+      color="#5f8bff"
+      secondaryColor={theme === 'dark' ? '#ea580c' : '#3b82f6'}
+      intensity={theme === 'dark' ? 1.1 : 1.4}
+      trailWidth={2}
+      linger={0.35}
+      glow={theme === 'dark' ? 0.8 : 0.4}
+      followSpeed={1.0}
+      quality="medium"
+      clickBurst
+      theme={theme}
+      blendMode={theme === 'dark' ? 'screen' : 'multiply'}
+    >
+      <div className={`app-container ${theme}-theme`}>
+        {/* Navbar */}
+        <Navbar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          ordersCount={orders.length}
+          isBackendConnected={isBackendConnected}
+          onOpenConfig={() => setIsConfigOpen(true)}
+          theme={theme}
+          onToggleTheme={handleToggleTheme}
+        />
 
-      {/* Main Body */}
-      <main className="main-content">
-        {activeTab === 'menu' && (
-          <div className="menu-grid-layout">
-            {/* Left: Food Catalog */}
-            <MenuCatalog
-              onSelectItem={handleSelectItem}
-              selectedFood={selectedFood}
+        {/* Main Body */}
+        <main className="main-content">
+          {activeTab === 'dashboard' && (
+            <OrderDashboard
+              orders={orders}
+              loading={loadingOrders}
+              onRefresh={loadOrders}
+              onEditOrder={(order) => setEditingOrder(order)}
+              onViewInvoice={(order) => setInvoiceOrder(order)}
+              onDeleteOrder={handleDeleteOrder}
+              showToast={showToast}
+              onUpdateStatusFast={handleUpdateStatusFast}
+              onNavigateToOrder={() => setActiveTab('menu')}
             />
+          )}
 
-            {/* Right: Sticky Order Form */}
-            <div>
-              <OrderForm
+          {activeTab === 'menu' && (
+            <div className="menu-grid-layout">
+              {/* Left: Food Catalog */}
+              <MenuCatalog
+                onSelectItem={handleSelectItem}
                 selectedFood={selectedFood}
-                onOrderCreated={handleOrderCreated}
-                showToast={showToast}
               />
-            </div>
-          </div>
-        )}
 
-        {activeTab === 'dashboard' && (
-          <OrderDashboard
-            orders={orders}
-            loading={loadingOrders}
-            onRefresh={loadOrders}
-            onEditOrder={(order) => setEditingOrder(order)}
-            onViewInvoice={(order) => setInvoiceOrder(order)}
-            onDeleteOrder={handleDeleteOrder}
+              {/* Right: Sticky Order Form */}
+              <div>
+                <OrderForm
+                  selectedFood={selectedFood}
+                  onOrderCreated={handleOrderCreated}
+                  showToast={showToast}
+                />
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'track' && (
+            <TrackOrder showToast={showToast} />
+          )}
+        </main>
+
+        {/* Modals */}
+        {editingOrder && (
+          <EditOrderModal
+            order={editingOrder}
+            onClose={() => setEditingOrder(null)}
+            onOrderUpdated={handleOrderUpdated}
             showToast={showToast}
-            onUpdateStatusFast={handleUpdateStatusFast}
           />
         )}
 
-        {activeTab === 'track' && (
-          <TrackOrder showToast={showToast} />
+        {invoiceOrder && (
+          <InvoiceModal
+            order={invoiceOrder}
+            onClose={() => setInvoiceOrder(null)}
+          />
         )}
-      </main>
 
-      {/* Modals */}
-      {editingOrder && (
-        <EditOrderModal
-          order={editingOrder}
-          onClose={() => setEditingOrder(null)}
-          onOrderUpdated={handleOrderUpdated}
+        <ApiConfigModal
+          isOpen={isConfigOpen}
+          onClose={() => setIsConfigOpen(false)}
+          onConfigSaved={() => {
+            checkHealth();
+            loadOrders();
+          }}
           showToast={showToast}
         />
-      )}
 
-      {invoiceOrder && (
-        <InvoiceModal
-          order={invoiceOrder}
-          onClose={() => setInvoiceOrder(null)}
-        />
-      )}
+        {/* Toasts */}
+        <Toast toasts={toasts} onDismiss={dismissToast} />
 
-      <ApiConfigModal
-        isOpen={isConfigOpen}
-        onClose={() => setIsConfigOpen(false)}
-        onConfigSaved={() => {
-          checkHealth();
-          loadOrders();
-        }}
-        showToast={showToast}
-      />
-
-      {/* Toasts */}
-      <Toast toasts={toasts} onDismiss={dismissToast} />
-
-      {/* Footer */}
-      <footer className="app-footer">
-        <div>
-          <strong>Food Order Management System</strong> • Spring Boot Backend (Port 2131) + React & Vite Frontend
-        </div>
-        <div style={{ marginTop: 6, fontSize: '0.775rem' }}>
-          Endpoints: <code>/foodorder/create</code> • <code>/foodorder/getorders</code> • <code>/foodorder/update/&#123;id&#125;</code> • <code>/foodorder/delete/&#123;id&#125;</code> • <code>/foodorder/getOrder/&#123;id&#125;</code>
-        </div>
-      </footer>
-    </div>
+        {/* Footer */}
+        <footer className="app-footer">
+          <div>
+            <strong>Food Order Management System</strong> • Spring Boot Backend (Port 2131) + React & Vite Frontend
+          </div>
+          <div style={{ marginTop: 6, fontSize: '0.775rem' }}>
+            Responsive on Mobile, Tablet & Desktop • Real-time REST API Synchronization
+          </div>
+        </footer>
+      </div>
+    </GlowCursor>
   );
 }
